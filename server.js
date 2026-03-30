@@ -4,7 +4,7 @@ const fs = require("fs");
 const app = express();
 app.use(express.json());
 
-const FILE = "./keys.json";
+const FILE = "/app/keys.json";
 const API_SECRET = process.env.API_SECRET || "Sigmaboy";
 
 // =====================
@@ -274,7 +274,7 @@ app.get("/listkeys", (req, res) => {
 });
 
 // =====================
-// ➕ ADDED: GENERATE KEY ENDPOINT
+// GENERATE KEY ENDPOINT
 // =====================
 app.post("/genkey", checkSecret, (req, res) => {
   const key = Math.random().toString(36).substring(2, 6).toUpperCase() +
@@ -303,7 +303,7 @@ app.post("/genkey", checkSecret, (req, res) => {
 });
 
 // =====================
-// ➕ ADDED: VALIDATE (Lua friendly)
+// VALIDATE (Lua friendly)
 // =====================
 app.post("/validate", (req, res) => {
   const { key, hwid } = req.body;
@@ -335,7 +335,7 @@ app.post("/validate", (req, res) => {
 });
 
 // =====================
-// ➕ ADDED: HEALTH CHECK
+// HEALTH CHECK
 // =====================
 app.get("/health", (req, res) => {
   res.json({
