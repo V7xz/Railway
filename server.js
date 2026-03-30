@@ -4,7 +4,7 @@ const fs = require("fs");
 const app = express();
 app.use(express.json());
 
-const FILE = "/app/keys.json";
+const FILE = "/app/data/keys.json";
 const API_SECRET = process.env.API_SECRET || "Sigmaboy";
 
 // =====================
