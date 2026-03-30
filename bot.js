@@ -5,8 +5,6 @@ const {
   Routes,
   SlashCommandBuilder,
   PermissionsBitField,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
 } = require("discord.js");
 
 require("dotenv").config();
@@ -19,17 +17,12 @@ const GUILD_ID = process.env.GUILD_ID;
 const API_URL = process.env.API_URL;
 const API_SECRET = process.env.API_SECRET;
 
-const PREMIUM_ROLE_ID = process.env.PREMIUM_ROLE_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 
 // ================= CLIENT =================
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });
-
-// ================= COOLDOWN =================
-const cooldown = new Map();
-const GENKEY_COOLDOWN = 30000;
 
 // ================= HELPERS =================
 function generateKey() {
@@ -83,7 +76,7 @@ async function apiPost(path, body) {
 
 async function apiGet(path) {
   try {
-    const res = await fetch(API_URL + path + `&secret=${API_SECRET}`);
+    const res = await fetch(API_URL + path);
     const text = await res.text();
     console.log(`[apiGet] ${path} →`, text);
     return JSON.parse(text);
@@ -138,15 +131,6 @@ const commands = [
     ),
 
   new SlashCommandBuilder()
-    .setName("redeem")
-    .setDescription("Redeem your license key")
-    .addStringOption(o =>
-      o.setName("key")
-        .setDescription("Key to redeem")
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
     .setName("extendkey")
     .setDescription("Extend key (ADMIN ONLY)")
     .addStringOption(o =>
@@ -189,18 +173,13 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("checkkey")
-    .setDescription("Check key (ADMIN ONLY)")
+    .setDescription("Check key info (ADMIN ONLY)")
     .addStringOption(o =>
       o.setName("key")
         .setDescription("Key to check")
         .setRequired(true)
     ),
 
-  new SlashCommandBuilder()
-    .setName("keypanel")
-    .setDescription("Key panel (ADMIN ONLY)"),
-
-  // ================= ADDED =================
   new SlashCommandBuilder()
     .setName("keylist")
     .setDescription("Show all keys (ADMIN ONLY)"),
@@ -220,13 +199,12 @@ const rest = new REST({ version: "10" }).setToken(TOKEN);
 
 // ================= MAIN =================
 client.on("interactionCreate", async interaction => {
-  if (!interaction.isChatInputCommand() && !interaction.isStringSelectMenu())
-    return;
+  if (!interaction.isChatInputCommand()) return;
 
   // ================= GENKEY =================
   if (interaction.commandName === "genkey") {
     if (!isAdmin(interaction))
-      return interaction.reply({ content: "❌ Admin only", ephemeral: true });
+      return interaction.reply({ content: "❌ Admin only", flags: 64 });
 
     const key = generateKey();
     const time = interaction.options.getString("time");
@@ -237,41 +215,26 @@ client.on("interactionCreate", async interaction => {
     });
 
     if (res.success) {
+      // Auto mark as used so no redeem needed
+      await apiPost("/redeem", {
+        key,
+        userId: "auto",
+      });
       sendLog(`🔑 GENKEY ${interaction.user.tag} → ${key} (${time})`);
     }
 
     return interaction.reply({
       content: res.success
-        ? `🔑 KEY:\n${key}\n\n\`\`\`lua\n${SCRIPT_SLOT(key)}\`\`\``
+        ? `🔑 KEY:\n\`${key}\`\n\n\`\`\`lua\n${SCRIPT_SLOT(key)}\`\`\``
         : "❌ FAILED",
-      ephemeral: true,
+      flags: 64,
     });
-  }
-
-  // ================= REDEEM =================
-  if (interaction.commandName === "redeem") {
-    await interaction.deferReply({ ephemeral: true });
-
-    const key = interaction.options.getString("key");
-
-    const res = await apiPost("/redeem", {
-      key,
-      userId: interaction.user.id,
-    });
-
-    if (res.success) {
-      sendLog(`🎟️ REDEEM ${interaction.user.tag} → ${key}`);
-    }
-
-    return interaction.editReply(
-      res.success ? "✅ REDEEM SUCCESS" : "❌ INVALID KEY"
-    );
   }
 
   // ================= EXTEND =================
   if (interaction.commandName === "extendkey") {
     if (!isAdmin(interaction))
-      return interaction.reply({ content: "❌ Admin only", ephemeral: true });
+      return interaction.reply({ content: "❌ Admin only", flags: 64 });
 
     const key = interaction.options.getString("key");
     const time = interaction.options.getString("time");
@@ -283,14 +246,14 @@ client.on("interactionCreate", async interaction => {
 
     return interaction.reply({
       content: res.success ? `⏫ EXTENDED (+${time})` : "❌ FAILED",
-      ephemeral: true,
+      flags: 64,
     });
   }
 
   // ================= RESET HWID =================
   if (interaction.commandName === "resethwid") {
     if (!isAdmin(interaction))
-      return interaction.reply({ content: "❌ Admin only", ephemeral: true });
+      return interaction.reply({ content: "❌ Admin only", flags: 64 });
 
     const key = interaction.options.getString("key");
 
@@ -298,14 +261,14 @@ client.on("interactionCreate", async interaction => {
 
     return interaction.reply({
       content: res.success ? "🔄 HWID RESET" : "❌ FAILED",
-      ephemeral: true,
+      flags: 64,
     });
   }
 
   // ================= REVOKE =================
   if (interaction.commandName === "revokekey") {
     if (!isAdmin(interaction))
-      return interaction.reply({ content: "❌ Admin only", ephemeral: true });
+      return interaction.reply({ content: "❌ Admin only", flags: 64 });
 
     const key = interaction.options.getString("key");
 
@@ -313,62 +276,55 @@ client.on("interactionCreate", async interaction => {
 
     return interaction.reply({
       content: res.success ? "🚫 REVOKED" : "❌ FAILED",
-      ephemeral: true,
+      flags: 64,
     });
   }
 
-  // ================= CHECK =================
+  // ================= CHECK KEY =================
   if (interaction.commandName === "checkkey") {
     if (!isAdmin(interaction))
-      return interaction.reply({ content: "❌ Admin only", ephemeral: true });
+      return interaction.reply({ content: "❌ Admin only", flags: 64 });
 
     const key = interaction.options.getString("key");
-
-    const allKeys = await apiGet(`/listkeys?`);
-
+    const allKeys = await apiGet(`/listkeys`);
     const keyData = allKeys[key];
 
     if (!keyData) {
       return interaction.reply({
-        content: "❌ INVALID KEY",
-        ephemeral: true,
+        content: "❌ KEY NOT FOUND",
+        flags: 64,
       });
     }
 
     return interaction.reply({
-      content: `✅ KEY INFO\nUsed: ${keyData.used}\nUser: ${keyData.userId || "none"}\nHWID: ${keyData.hwid || "none"}\nExpires: ${keyData.expires || "never"}`,
-      ephemeral: true,
+      content: `✅ KEY INFO\nKey: \`${key}\`\nHWID: ${keyData.hwid || "none"}\nExpires: ${keyData.expires || "never"}\nRevoked: ${keyData.revoked}`,
+      flags: 64,
     });
   }
 
-  // ================= 🔥 KEYLIST (ADDED) =================
+  // ================= KEYLIST =================
   if (interaction.commandName === "keylist") {
     if (!isAdmin(interaction))
-      return interaction.reply({ content: "❌ Admin only", ephemeral: true });
+      return interaction.reply({ content: "❌ Admin only", flags: 64 });
 
     const allKeys = await apiGet(`/listkeys`);
 
     if (!allKeys || Object.keys(allKeys).length === 0) {
       return interaction.reply({
         content: "📭 No keys found",
-        ephemeral: true,
+        flags: 64,
       });
     }
 
     const formatted = Object.entries(allKeys)
       .map(([key, data]) => {
-        return `🔑 ${key}
-Used: ${data.used}
-User: ${data.userId || "none"}
-HWID: ${data.hwid || "none"}
-Expires: ${data.expires || "never"}
-Revoked: ${data.revoked}`;
+        return `🔑 ${key}\nHWID: ${data.hwid || "none"}\nExpires: ${data.expires || "never"}\nRevoked: ${data.revoked}`;
       })
       .join("\n\n");
 
     return interaction.reply({
       content: `📋 KEY LIST\n\n\`\`\`\n${formatted.slice(0, 3500)}\n\`\`\``,
-      ephemeral: true,
+      flags: 64,
     });
   }
 
