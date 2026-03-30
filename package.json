@@ -1,0 +1,23 @@
+{
+  "name": "majesty-bot",
+  "version": "1.0.0",
+  "description": "Discord bot + web server (24/7)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
