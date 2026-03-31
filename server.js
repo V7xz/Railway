@@ -4,12 +4,16 @@ const fs = require("fs");
 const app = express();
 app.use(express.json());
 
-const FILE = "/app/data/keys.json";
+const FILE = "/data/keys.json";
 const API_SECRET = process.env.API_SECRET || "Sigmaboy";
 
 // =====================
 // ENSURE FILE EXISTS
 // =====================
+if (!fs.existsSync("/data")) {
+  fs.mkdirSync("/data", { recursive: true });
+  console.log("📁 /data folder dibuat");
+}
 if (!fs.existsSync(FILE)) {
   fs.writeFileSync(FILE, "{}");
   console.log("📄 keys.json dibuat otomatis");
